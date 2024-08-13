@@ -16,14 +16,14 @@ varying highp vec3 vFragPos;
 varying highp vec3 vNormal;
 
 // Shadow map related variables
-#define NUM_SAMPLES 20
+#define NUM_SAMPLES 16
 #define BLOCKER_SEARCH_NUM_SAMPLES NUM_SAMPLES
 #define PCF_NUM_SAMPLES NUM_SAMPLES
 #define NUM_RINGS 10
 
 #define NEAR_PLANE 1.0
-#define LIGHT_WORLD_SIZE 0.01
-#define LIGHT_FRUSTUM_WIDTH 5.0
+#define LIGHT_WORLD_SIZE 0.05
+#define LIGHT_FRUSTUM_WIDTH 10.0
 
 // Assuming that LIGHT_FRUSTUM_WIDTH == LIGHT_FRUSTUM_WIDTH
 #define LIGHT_SIZE_UV (LIGHT_WORLD_SIZE / LIGHT_FRUSTUM_WIDTH)
@@ -99,10 +99,11 @@ float PenumbraSize(float zReceiver, float zBlocker)
 float findBlocker( sampler2D shadowMap,  vec2 uv, float zReceiver, out int numBlockers) {
   //This uses similar triangle to compute what area of the shadow map we should search
   float search_width = LIGHT_SIZE_UV * (zReceiver - NEAR_PLANE) / zReceiver;
+  // float search_width = 0.1;
 
   float blockerSum = 0.0;
   numBlockers = 0;
-
+  poissonDiskSamples(uv);
   for(int i = 0; i < BLOCKER_SEARCH_NUM_SAMPLES; i ++ )
   {
     float depthOnShadowMap = unpack(texture2D(shadowMap, uv + poissonDisk[i] * search_width));
@@ -117,7 +118,6 @@ float findBlocker( sampler2D shadowMap,  vec2 uv, float zReceiver, out int numBl
 }
 
 float PCF(sampler2D shadowMap, vec4 coords, float filtersize) {
-  poissonDiskSamples(coords.xy);
   float _sum = 0.0, depthOnShadowMap, depth;
   vec4 ncoords;
   for (int i = 0; i < PCF_NUM_SAMPLES ; i ++ )
@@ -147,7 +147,7 @@ float PCSS(sampler2D shadowMap, vec4 coords){
   }
   // STEP 2: penumbra size
   float penumbraRatio = PenumbraSize(zReceiver, avgBlockerDepth);
-  float filtersize = penumbraRatio * LIGHT_SIZE_UV * NEAR_PLANE / coords.z;
+  float filtersize = penumbraRatio * LIGHT_SIZE_UV * NEAR_PLANE / zReceiver;
 
   // STEP 3: filtering
   return PCF(shadowMap, coords, filtersize);
